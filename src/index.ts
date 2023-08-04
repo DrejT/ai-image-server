@@ -8,6 +8,9 @@ import { getImageUrl } from "./external/imageupload";
 const app = express();
 const Prisma = new PrismaClient();
 
+app.use(express.json({limit: '25mb'}));
+app.use(express.urlencoded({limit: '25mb'}));
+
 app.use(express.json());
 // GET request to fetch all the posts from the database
 
@@ -47,6 +50,7 @@ app.get('/user/:name',async (req,res) => {
 
 app.get("/generate/:prompt",async (req,res) => {
     const {prompt} = req.params;
+    console.log(prompt);
     const image = await generate(prompt);
     res.json({
         "image":image,
@@ -57,7 +61,7 @@ app.get("/generate/:prompt",async (req,res) => {
 // POST request to post an image from a user
 app.post("/post/upload/",async (req,res) => {
     const {imageData,prompt,username} = req.body;
-    console.log(prompt,username);
+    console.log("inside post/upload/",prompt,username);
     const user = await Prisma.user.findUnique({
         where:{name:String(username)}
     })
