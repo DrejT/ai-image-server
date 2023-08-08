@@ -12,13 +12,14 @@ app.use(express.json({limit: '25mb'}));
 app.use(express.urlencoded({limit: '25mb'}));
 
 app.use(express.json());
-// GET request to fetch all the posts from the database
 
+// GET request to fetch all the posts from the database
 app.get('/feed',async (req,res) => {
-    const posts = await Prisma.post.findMany();
-    res.json(posts);
+    const posts = await Prisma.post.findMany(); // find all the posts from the Post model in the db
+    res.json(posts); 
 })
 
+// takes a userid as the params and returns the requested post of the current user
 app.get(`/post/:id`, async (req, res) => {
     const { id } = req.params
     const post = await Prisma.post.findUnique({
@@ -27,27 +28,50 @@ app.get(`/post/:id`, async (req, res) => {
     res.json(post);
   })
 
+app.get("/search/:username",async (req,res) => {
+    const {username} = req.params;
+    const user = await Prisma.user.findUnique({
+        where:{name:username},
+        include:{
+            posts:true
+        }
+    });
+    if (user){
+        user.email = "";
+        user.passwordHash = "";
+        user.posts = []
+        res.json(user);
+    } else {
+        res.json(null);
+    }
+})
+
+// takes the username as params and returns data realted to the requested user
 app.get('/user/:name',async (req,res) => {
     const {name} = req.params;
-    console.log(name);
     if (typeof name === "string"){
         const user = await Prisma.user.findUnique({
             where: {name:String(name)},
             include: {
-                posts:true,
+                posts:true, // includes the posts by the specified user
             }
         });
+        // the returned user obj also includes the passwordHash field which contains the 
+        // password of the user and hence has to be removed by replacing with an empty string 
+        // instead. 
         if (user!==null){
             user!.passwordHash = "";
             user!.email = "";
             console.log(user);
             res.json(user);
         } else {
-            return res.json(null);
+            res.json(null);
         }
     }
 })
 
+// Takes the user prompt as the params passes the prompt to the generate function which 
+// makes a request to the stability ai api and return a base64 string
 app.get("/generate/:prompt",async (req,res) => {
     const {prompt} = req.params;
     console.log(prompt);
@@ -58,16 +82,15 @@ app.get("/generate/:prompt",async (req,res) => {
     })
 })
 
-// POST request to post an image from a user
+// This is the route used to post an image from the user
+// the post request expects the username returned from the getUsername function on the client side
 app.post("/post/upload/",async (req,res) => {
     const {imageData,prompt,username} = req.body;
-    console.log("inside post/upload/",prompt,username);
     const user = await Prisma.user.findUnique({
         where:{name:String(username)}
     })
     // const useremail = user?.email;
     const url = await getImageUrl(imageData);
-    console.log(url)
     const newPost = await Prisma.post.create({
         data: {
             prompt:prompt,
@@ -86,8 +109,7 @@ app.post("/login",async (req,res) => {
     const {username, password} = req.body;
     if ((typeof username === "string") &&
         (typeof password === "string")) {
-            const loginData = await loginValidate(username,password);
-            console.log(loginData);
+            const loginData = await loginValidate(username,password); // validates the password and the username
             res.json(loginData);
         }
         else {
